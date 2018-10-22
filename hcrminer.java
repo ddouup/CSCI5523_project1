@@ -41,7 +41,7 @@ class TreeNode {
 	public void setChildNodes(List<TreeNode> childNodes) {
 		this.childNodes = childNodes;
 	}
-	public void addChild(TreeNode node) {
+	public void addChildNode(TreeNode node) {
 		if (getChildNodes() == null) {
 			List<TreeNode> list = new ArrayList<TreeNode>();
 			list.add(node);
@@ -50,6 +50,17 @@ class TreeNode {
 		else {
 			getChildNodes().add(node);
 		}
+	}
+	public TreeNode findChildNode(String id) {
+		List<TreeNode> childNodes = this.getChildNodes();
+		if(childNodes != null) {
+			for(TreeNode temp : childNodes) {
+				if(temp.getId().equals(id)) {
+					return temp;
+				}
+			}
+		}
+		return null;
 	}
 	public int getCount() {
 		return count;
@@ -79,6 +90,17 @@ class FPTree {
 		_minconf = minconf;
 	}
 
+	public void printTree(TreeNode root) {
+
+		System.out.println(root.getId()+": "+root.getCount());
+		if (root.getChildNodes() != null) {
+			for (TreeNode node: root.getChildNodes()) {
+				printTree(node);
+			}
+		}
+		System.out.println("");
+	}
+
 	public void build(LinkedHashMap<Integer, LinkedList<String>> transactions, LinkedHashMap<String, Integer> itemsets) {
 		ArrayList<TreeNode> headerTable = buildHeaderTable(itemsets);
 
@@ -89,8 +111,8 @@ class FPTree {
 	public ArrayList<TreeNode> buildHeaderTable(LinkedHashMap<String, Integer> itemsets) {
 		ArrayList<TreeNode> headerTable = new ArrayList<TreeNode>();
 		for (Map.Entry<String, Integer>item : itemsets.entrySet()) {
-			//Only store items support count > minsup
-			if (item.getValue() > _minsup) {
+			//Only store items support count >= minsup
+			if (item.getValue() >= _minsup) {
 				System.out.println(item);
 				TreeNode node = new TreeNode(item.getKey());
 				node.setCount(item.getValue());
@@ -101,23 +123,26 @@ class FPTree {
 	}
 
 	public TreeNode buildFPTree(LinkedHashMap<Integer, LinkedList<String>> transactions, ArrayList<TreeNode> headerTable) {
-
 		TreeNode root = new TreeNode();
+		TreeNode node_temp = root;
+
         for (Map.Entry<Integer, LinkedList<String>> unsorted_trans : transactions.entrySet()) {
             LinkedList<String> transaction = transactionSort(unsorted_trans, headerTable);
-            /*
-            TreeNode subTreeRoot = root;
-            TreeNode tmpRoot = null;
-            if (root.getChildren() != null) {
-                while (!transaction.isEmpty()
-                        && (tmpRoot = subTreeRoot.findChild(transaction.peek())) != null) {
-                    tmpRoot.countIncrement(1);
-                    subTreeRoot = tmpRoot;
-                    transaction.poll();
-                }
-            }
-            addNodes(subTreeRoot, record, headerTable);
-            */
+
+            for(String id : transaction) {
+				TreeNode temp = node_temp.findChildNode(id);
+				if(temp == null) {
+					temp = new TreeNode();
+					temp.setId(id);
+					temp.setCount(0);
+					temp.setParentNode(node_temp);
+					node_temp.addChildNode(temp);
+					addNextNode(temp, headerTable);
+				}
+				temp.increaseCount();
+				node_temp = temp;
+			}
+			node_temp = root;
         }
         return root;
     }
@@ -144,6 +169,17 @@ class FPTree {
 		});
 
 		return transaction;
+	}
+
+	public void addNextNode(TreeNode temp, ArrayList<TreeNode> headerTable) {
+		for(TreeNode node : headerTable) {
+			if(node.getId().equals(temp.getId())) {
+				while(node.getNextNode() != null) {
+					node = node.getNextNode();
+				}
+				node.setNextNode(temp);
+			}
+		}
 	}
 }
 
